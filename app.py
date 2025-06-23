@@ -13,7 +13,7 @@ st.set_page_config(
     page_icon="🌾",
     layout="wide"
 )
-st.title("🌾 Dashboard dan Prediksi Harga Komoditas Beras")
+st.title("🌾Aplikasi Prediksi Harga Komoditas Beras Wonosobo")
 st.markdown("Aplikasi interaktif untuk visualisasi dan prediksi harga beras kualitas premium dan medium.")
 
 # --- Fungsi-fungsi Bantuan (dengan cache untuk performa) ---
