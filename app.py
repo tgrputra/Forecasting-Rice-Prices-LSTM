@@ -38,7 +38,7 @@ def load_model_and_scaler(jenis_beras):
 def load_data():
     """Memuat dan memproses dataset dari file CSV."""
     try:
-        df = pd.read_csv('Dataset Beras New Fix.csv')
+        df = pd.read_csv('dataset_beras_lstm.csv')
         df['Tanggal'] = pd.to_datetime(df['Tanggal'])
         df.set_index('Tanggal', inplace=True)
         return df
@@ -90,7 +90,7 @@ else:
             ('3 Bulan Terakhir', '6 Bulan Terakhir', '1 Tahun Terakhir', 'Semua Data')
         )
         
-        n_future = st.slider('Pilih Jumlah Hari Prediksi:', min_value=1, max_value=30, value=7)
+        n_future = st.slider('Pilih Jumlah Hari Prediksi:', min_value=1, max_value=30, value=10)
         start_prediction = st.button('Mulai Prediksi', type="primary", use_container_width=True)
         
         st.markdown("---")
@@ -122,7 +122,7 @@ else:
 
     if start_prediction:
         with st.spinner(f'Melakukan prediksi untuk {n_future} hari ke depan...'):
-            window_size = 20
+            window_size = 30
             predictions = predict_future(model, scaler, kolom_data, window_size, n_future)
             
             last_date = kolom_data.index[-1]
@@ -179,7 +179,6 @@ else:
                mime='text/csv',
             )
             st.success("Prediksi berhasil dibuat!")
-
 
     # Update layout grafik
     fig.update_layout(
