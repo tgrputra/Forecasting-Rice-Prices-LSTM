@@ -90,7 +90,7 @@ else:
             ('3 Bulan Terakhir', '6 Bulan Terakhir', '1 Tahun Terakhir', 'Semua Data')
         )
         
-        n_future = st.slider('Pilih Jumlah Hari Prediksi:', min_value=1, max_value=30, value=10)
+        n_future = st.slider('Pilih Jumlah Hari Prediksi:', min_value=1, max_value=180, value=90)
         start_prediction = st.button('Mulai Prediksi', type="primary", use_container_width=True)
         
         st.markdown("---")
