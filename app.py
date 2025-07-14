@@ -117,26 +117,29 @@ else:
             min_date_allowed = kolom_data.index.min() + pd.DateOffset(days=30)
             max_date_allowed = kolom_data.index.max()
             
+            if 'end_date_val' not in st.session_state:
+                st.session_state.end_date_val = max_date_allowed.date()
+            if 'start_date_val' not in st.session_state:
+                st.session_state.start_date_val = (max_date_allowed - pd.DateOffset(days=30)).date()
+
+            def sync_dates_validation():
+                if st.session_state.start_date_val > st.session_state.end_date_val:
+                    st.session_state.start_date_val = st.session_state.end_date_val
+
             end_validation_date = st.date_input(
                 "1. Pilih Tanggal Awal Prediksi",
-                value=max_date_allowed.date(),
                 min_value=min_date_allowed.date(),
                 max_value=max_date_allowed.date(),
-                key='val_end_date'
+                key='end_date_val',
+                on_change=sync_dates_validation
             )
             
-            earliest_start_allowed = pd.to_datetime(end_validation_date) - pd.DateOffset(days=179)
-            if earliest_start_allowed < min_date_allowed:
-                earliest_start_allowed = min_date_allowed
-            
-            # --- PERUBAHAN: Ubah default menjadi 29 hari untuk rentang 30 hari ---
             start_validation_date = st.date_input(
                 "2. Pilih Tanggal Akhir Prediksi",
-                value=(pd.to_datetime(end_validation_date) - pd.DateOffset(days=29)).date(),
-                min_value=earliest_start_allowed.date(),
+                min_value=min_date_allowed.date(),
                 max_value=end_validation_date,
-                key='val_start_date',
-                help="Maksimal Prediksi 6 Bulan ke Belakang"
+                key='start_date_val',
+                on_change=sync_dates_validation
             )
 
             n_days_validation = (end_validation_date - start_validation_date).days + 1
@@ -161,30 +164,58 @@ else:
     # --- Tampilan Utama ---
     st.header(f"Visualisasi dan Prediksi Harga Beras {jenis_beras}")
 
-    with st.expander("🔍 Cek Harga Historis (Rentang Maksimal 1 Bulan)"):
+    # --- PERBAIKAN: Logika sinkronisasi kalender yang lebih andal ---
+    with st.expander("🔍 Cek Harga Historis (Rentang Maksimal 1 Bulan)", expanded=True):
         
         min_date_check = kolom_data.index.min()
         max_date_check = kolom_data.index.max()
         
-        start_date_check = st.date_input(
-            "Tanggal Mulai",
-            value=(max_date_check - pd.DateOffset(days=7)).date(),
-            min_value=min_date_check.date(),
-            max_value=max_date_check.date(),
-            key='check_start_date'
-        )
+        # Inisialisasi state jika belum ada
+        if 'expander_start' not in st.session_state:
+            st.session_state.expander_start = (max_date_check - pd.DateOffset(days=7)).date()
+        if 'expander_end' not in st.session_state:
+            st.session_state.expander_end = max_date_check.date()
         
-        max_end_allowed = pd.to_datetime(start_date_check) + pd.DateOffset(days=30)
-        if max_end_allowed > max_date_check:
-            max_end_allowed = max_date_check
-        
-        end_date_check = st.date_input(
-            "Tanggal Akhir",
-            value=max_date_check.date(),
-            min_value=start_date_check,
-            max_value=max_end_allowed.date(),
-            key='check_end_date'
-        )
+        # Callback function untuk sinkronisasi
+        def sync_expander_dates(widget_key):
+            start = st.session_state.expander_start
+            end = st.session_state.expander_end
+
+            # Jika pengguna mengubah tanggal mulai
+            if widget_key == 'expander_start':
+                if (end - start).days > 30:
+                    new_end = start + pd.DateOffset(days=30)
+                    if new_end.date() > max_date_check.date():
+                        st.session_state.expander_end = max_date_check.date()
+                    else:
+                        st.session_state.expander_end = new_end.date()
+            
+            # Jika pengguna mengubah tanggal akhir
+            elif widget_key == 'expander_end':
+                if (end - start).days > 30:
+                    new_start = end - pd.DateOffset(days=30)
+                    st.session_state.expander_start = new_start.date()
+
+        col_start, col_end = st.columns(2)
+        with col_start:
+            start_date_check = st.date_input(
+                "Tanggal Mulai",
+                min_value=min_date_check.date(),
+                max_value=max_date_check.date(),
+                key='expander_start',
+                on_change=sync_expander_dates,
+                args=('expander_start',)
+            )
+
+        with col_end:
+            end_date_check = st.date_input(
+                "Tanggal Akhir",
+                min_value=start_date_check,
+                max_value=max_date_check.date(),
+                key='expander_end',
+                on_change=sync_expander_dates,
+                args=('expander_end',)
+            )
 
         if st.button("Tampilkan Data Historis", use_container_width=True):
             historical_slice = kolom_data.loc[start_date_check:end_date_check]
@@ -199,6 +230,7 @@ else:
                     display_df.style.format({"Harga (Rp)": "Rp {:,.0f}"}),
                     use_container_width=True
                 )
+    # --- AKHIR PERBAIKAN ---
 
     fig = go.Figure()
     
@@ -242,10 +274,9 @@ else:
                         
                         df_validation = df_validation.sort_values(by='Tanggal', ascending=False)
                         
-                        df_validation['Tanggal'] = pd.to_datetime(df_validation['Tanggal']).dt.strftime('%Y-%m-%d')
                         st.subheader(f"Tabel Hasil Prediksi Mundur Harga Beras {jenis_beras} ({n_days_validation} Hari ke Belakang)")
                         st.dataframe(df_validation.style.format({"Harga Aktual": "Rp {:,.0f}", "Hasil Prediksi": "Rp {:,.0f}", "Selisih": "Rp {:+,.0f}"}), use_container_width=True, hide_index=True)
-                        fig.add_trace(go.Scatter(x=df_validation['Tanggal'], y=df_validation['Hasil Prediksi'], mode='lines', name='Prediksi (Mundur)', line=dict(color='green', dash='dot', width=3)))
+                        fig.add_trace(go.Scatter(x=df_validation['Tanggal'].dt.strftime('%Y-%m-%d'), y=df_validation['Hasil Prediksi'], mode='lines', name='Prediksi (Mundur)', line=dict(color='green', dash='dot', width=3)))
 
                         st.subheader(f"Ringkasan Prediksi")
                         prediksi_hari_terakhir = df_validation['Hasil Prediksi'].iloc[0]
@@ -267,7 +298,9 @@ else:
                 st.error(f"Terjadi error saat validasi: {e}")
                 
             if not df_validation.empty:
-                csv_validation = convert_df_to_csv(df_validation)
+                df_validation_download = df_validation.copy()
+                df_validation_download['Tanggal'] = pd.to_datetime(df_validation_download['Tanggal']).dt.strftime('%Y-%m-%d')
+                csv_validation = convert_df_to_csv(df_validation_download)
                 st.download_button(
                     label="📥 Download Hasil Prediksi (CSV)",
                     data=csv_validation,
@@ -289,8 +322,6 @@ else:
             future_dates = pd.date_range(start=last_date + timedelta(days=1), periods=n_future)
             
             df_pred = pd.DataFrame({'Tanggal': future_dates, 'Harga Prediksi (Rp)': predictions.flatten()})
-            df_pred['Tanggal'] = df_pred['Tanggal'].dt.strftime('%Y-%m-%d')
-            fig.add_trace(go.Scatter(x=df_pred['Tanggal'], y=df_pred['Harga Prediksi (Rp)'], mode='lines', name='Hasil Prediksi Maju', line=dict(color='orange', dash='dash', width=3)))
             st.subheader(f"Tabel Hasil Prediksi Maju Harga Beras {jenis_beras} ({n_future} Hari ke Depan)")
             st.dataframe(df_pred.style.format({"Harga Prediksi (Rp)": "Rp {:,.0f}"}), use_container_width=True, hide_index=True)
 
@@ -306,9 +337,13 @@ else:
             tren_text = "Naik 📈" if predictions[-1] > kolom_data[jenis_beras].iloc[-1] else "Turun 📉"
             delta_tren_value = predictions[-1][0] - kolom_data[jenis_beras].iloc[-1]
             col4.metric("Tren Prediksi", tren_text, delta=f"{delta_tren_value:,.0f} Rupiah")
-            csv_pred = convert_df_to_csv(df_pred)
+            
+            df_pred_download = df_pred.copy()
+            df_pred_download['Tanggal'] = pd.to_datetime(df_pred_download['Tanggal']).dt.strftime('%Y-%m-%d')
+            csv_pred = convert_df_to_csv(df_pred_download)
             st.download_button(label="📥 Download Hasil Prediksi (CSV)", data=csv_pred, file_name=f'prediksi_maju_beras{jenis_beras.lower()}_{n_future}_hari.csv', mime='text/csv')
             st.success("Prediksi berhasil dibuat!")
+            fig.add_trace(go.Scatter(x=df_pred['Tanggal'].dt.strftime('%Y-%m-%d'), y=df_pred['Harga Prediksi (Rp)'], mode='lines', name='Hasil Prediksi Maju', line=dict(color='orange', dash='dash', width=3)))
     
     fig.add_trace(go.Scatter(x=data_to_plot.index, y=data_to_plot[jenis_beras].values, mode='lines', name='Data Historis', line=dict(color='blue', width=2)))
 
