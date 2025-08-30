@@ -1,6 +1,6 @@
 -----
 
-# Prediksi Harga Beras Wonosobo Menggunakan LSTM
+# Prediksi Harga Beras di Wonosobo Menggunakan Metode LSTM
 
 Aplikasi web ini menyajikan sistem prediksi harga untuk komoditas beras kualitas premium dan medium di Kabupaten Wonosobo, Jawa Tengah. Dibuat sebagai bagian dari Laporan Tugas Akhir, aplikasi ini menggunakan model *Deep Learning* **Long Short-Term Memory (LSTM)** untuk meramalkan pergerakan harga di masa depan dan melakukan validasi terhadap data historis.
 
